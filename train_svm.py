@@ -16,7 +16,7 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-# Standardize features (SVM is sensitive to feature scales)
+# Standardize features
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
@@ -24,7 +24,7 @@ X_test_scaled = scaler.transform(X_test)
 from sklearn.svm import SVC
 from sklearn.model_selection import GridSearchCV
 
-# Initialize SVM (multi-class handled automatically)
+# Initialize SVM
 svm = SVC(probability=False, random_state=42)
 
 # Hyperparameter grid

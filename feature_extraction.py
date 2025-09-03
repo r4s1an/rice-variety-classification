@@ -13,15 +13,18 @@ all_features = []
 # Count total images for progress bar
 total_images = sum([len([f for f in os.listdir(os.path.join(dataset_path, label))
                          if f.lower().endswith(('.jpg', '.png'))])
-                    for label in os.listdir(dataset_path) if os.path.isdir(os.path.join(dataset_path, label))])
+                    for label in os.listdir(dataset_path) 
+                    if os.path.isdir(os.path.join(dataset_path, label))])
 
 pbar = tqdm(total=total_images, desc="Extracting features")
 
+# Loop over each class folder
 for label in os.listdir(dataset_path):
     class_path = os.path.join(dataset_path, label)
     if not os.path.isdir(class_path):
         continue
 
+    # Loop over each image in the class folder
     for file in os.listdir(class_path):
         img_path = os.path.join(class_path, file)
         if not (file.lower().endswith(".jpg") or file.lower().endswith(".png")):
@@ -32,9 +35,11 @@ for label in os.listdir(dataset_path):
             pbar.update(1)
             continue
 
+        # Convert to grayscale and threshold to binary mask
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
+        # Find external contours
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         
         if len(contours) == 0:
@@ -42,10 +47,11 @@ for label in os.listdir(dataset_path):
             continue
         cnt = max(contours, key=cv2.contourArea)
 
+        # Shape features
         area = cv2.contourArea(cnt)
         perimeter = cv2.arcLength(cnt, True)
 
-        # Fit ellipse safely
+        # Fit ellipse if possible
         if len(cnt) >= 5:
             (x, y), (axis1, axis2), angle = cv2.fitEllipse(cnt)
             MA, ma = max(axis1, axis2), min(axis1, axis2)
@@ -54,12 +60,13 @@ for label in os.listdir(dataset_path):
         else:
             MA = ma = aspect_ratio = eccentricity = 0
 
+        # Convex hull-based features
         hull = cv2.convexHull(cnt)
         hull_area = cv2.contourArea(hull)
         solidity = area / hull_area if hull_area > 0 else 0
         roundness = (4 * np.pi * area) / (perimeter ** 2) if perimeter > 0 else 0
 
-        # RGB features
+        # RGB color features within the contour
         mask = np.zeros(img.shape[:2], dtype=np.uint8)
         cv2.drawContours(mask, [cnt], -1, 255, -1)  # filled contour
         B, G, R = cv2.split(img)
@@ -72,6 +79,7 @@ for label in os.listdir(dataset_path):
             "B_std": np.std(B[mask==255])
         }
 
+        # Combine shape and RGB features
         features = {
             "filename": file,
             "label": label,
@@ -91,7 +99,7 @@ for label in os.listdir(dataset_path):
 
 pbar.close()
 
-# Save to CSV
+# Save extracted features to CSV
 df = pd.DataFrame(all_features)
 df.to_csv(output_csv, index=False)
 print(f"Features saved to {output_csv}")
